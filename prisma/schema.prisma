@@ -1,0 +1,94 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("USER") // USER or ADMIN
+  isPremium Boolean  @default(false)
+  isBlocked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaigns      Campaign[]
+  emailTemplates EmailTemplate[]
+  upgradeRequests UpgradeRequest[]
+  payments       Payment[]
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  userId      String
+  subject     String
+  content     String   // HTML content
+  receivers   String   // JSON string of receivers array [{name, email}]
+  attachments String   @default("[]") // JSON string of attachment paths
+  logoUrl     String   @default("")
+  sentCount   Int      @default(0)
+  failedCount Int      @default(0)
+  totalCount  Int      @default(0)
+  status      String   @default("DRAFT") // DRAFT, SENDING, COMPLETED, FAILED, SCHEDULED
+  scheduledAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emailLogs EmailLog[]
+}
+
+model EmailLog {
+  id          String   @id @default(cuid())
+  campaignId  String
+  receiver    String
+  receiverName String @default("")
+  status      String   // SENT, FAILED, PENDING
+  errorMessage String  @default("")
+  sentAt      DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+}
+
+model EmailTemplate {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  subject   String
+  content   String   // HTML content
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UpgradeRequest {
+  id        String   @id @default(cuid())
+  userId    String
+  status    String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  userId          String
+  razorpayOrderId String
+  razorpayPaymentId String @default("")
+  razorpaySignature String @default("")
+  amount          Int      // Amount in paise (e.g., 99900 = ₹999.00)
+  currency        String   @default("INR")
+  plan            String   // "PRO" or "ENTERPRISE"
+  status          String   @default("CREATED") // CREATED, PAID, FAILED, REFUNDED
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
